@@ -6,19 +6,22 @@ import psycopg2
 import json
 
 connection = psycopg2.connect(
-    host='127.0.0.1', 
+    host='localhost', 
     port= '5432',
     database="qr",
-    user="pavelkrolevets",
-    password=None,
+    user="postgres",
+    password="1",
 )
 connection.autocommit = True
 
+def track_exists(cursor, track_id):
+    cursor.execute("SELECT vax_num FROM qr_covid WHERE vax_num = %s", (track_id,))
+    return cursor.fetchone() is not None
+
 def create_staging_table(cursor) -> None:
     cursor.execute("""
-        DROP TABLE IF EXISTS qr_covid;
-        CREATE UNLOGGED TABLE qr_covid (
-            vax_num             TEXT,
+        CREATE UNLOGGED TABLE IF NOT EXISTS qr_covid (
+            vax_num             TEXT PRIMARY KEY,
             vax_id              TEXT,
             fio                 TEXT,
             birthDate           TEXT,
@@ -48,16 +51,17 @@ for root, dirs, files in os.walk('./downloads'):
                 print(qr)
                 cursor = connection.cursor()
                 # create_staging_table(cursor)
-                cursor.execute("INSERT INTO qr_covid (vax_num, vax_id,fio,birthDate,passport,qr,image_url,expiredAt) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)" , (
-                    qr['unrz'],
-                    id_hash,
-                    qr['fio'],
-                    qr['birthdate'],
-                    qr['doc'],
-                    qr['qr'],
-                    root+"/"+file,
-                    qr['expiredAt']))
-                connection.commit()
+                if track_exists(cursor, qr['unrz']) is not None:
+                    cursor.execute("INSERT INTO qr_covid (vax_num, vax_id,fio,birthDate,passport,qr,image_url,expiredAt) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)" , (
+                        qr['unrz'],
+                        id_hash,
+                        qr['fio'],
+                        qr['birthdate'],
+                        qr['doc'],
+                        qr['qr'],
+                        root+"/"+file,
+                        qr['expiredAt']))
+                    connection.commit()
             
             
             if "https://www.gosuslugi.ru/covid-cert/verify/" in data[0].data.decode('UTF-8'):
@@ -71,17 +75,18 @@ for root, dirs, files in os.walk('./downloads'):
                 print(qr)
                 cursor = connection.cursor()
                 # create_staging_table(cursor)
-                cursor.execute("INSERT INTO qr_covid (vax_num,vax_id,fio,birthDate,passport,qr,image_url,expiredAt) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)" , (
-                    qr['items'][0]['unrzFull'],
-                    qr['items'][0]['unrzFull'],
-                    qr['items'][0]['attrs'][0]['value'],
-                    qr['items'][0]['attrs'][1]['value'],
-                    qr['items'][0]['attrs'][2]['value'],
-                    qr['items'][0]['qr'],
-                    root+"/"+file,
-                    qr['items'][0]['expiredAt']))
-                connection.commit()
-        except Exception:
-            print("QR decode error")
+                if track_exists(cursor, qr['items'][0]['unrzFull']) is not None:
+                    cursor.execute("INSERT INTO qr_covid (vax_num,vax_id,fio,birthDate,passport,qr,image_url,expiredAt) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)" , (
+                        qr['items'][0]['unrzFull'],
+                        qr['items'][0]['unrzFull'],
+                        qr['items'][0]['attrs'][0]['value'],
+                        qr['items'][0]['attrs'][1]['value'],
+                        qr['items'][0]['attrs'][2]['value'],
+                        qr['items'][0]['qr'],
+                        root+"/"+file,
+                        qr['items'][0]['expiredAt']))
+                    connection.commit()
+        except Exception as ex:
+            print("QR decode error", ex)
 
 connection.close()

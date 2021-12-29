@@ -1,0 +1,32 @@
+cd c:\SourceCOVID\qr-covid-scrapper\
+REM создание среды
+REM c:\Python38\python.exe -m venv environment
+c:\SourceCOVID\qr-covid-scrapper\environment\Scripts\activate.bat
+python c:\SourceCOVID\qr-covid-scrapper\qr\qr.py
+pip install selenium
+REM Edit    "chromedriver": "c:\SourceCOVID\qr-covid-scrapper\chromedriver_win32\chromedriver.exe"
+REM Install postgresql
+pip install requests
+pip install Pillow
+pip install pyzbar
+pip install psycopg2
+
+python c:\SourceCOVID\qr-covid-scrapper\qr\check.py
+
+REM pip freeze > requirements.txt
+REM python -m pip install -r requirements.txt
+
+SELECT vax_num, vax_id, fio, birthdate, passport, image_url, expiredat
+FROM public.qr_covid
+ORDER BY to_date(public.qr_covid.birthdate, 'DD.MM.YYYY');
+
+SELECT *
+FROM [Names].[dbo].[russian_surnames]
+WHERE Surname LIKE N'Бор%' AND LEN(Surname) = 6
+ORDER By PeoplesCount
+
+SELECT Name + N'ович', Sex, PeoplesCount
+FROM [Names].[dbo].russian_names
+WHERE Name LIKE N'А%' AND LEN(Name) = 13 - 4
+AND Sex = N'М'
+ORDER By PeoplesCount Desc
